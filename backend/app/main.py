@@ -42,3 +42,4 @@ app.include_router(cluster.router)
 def deployments():
     from app.routers.cluster import list_deployments
     return list_deployments()
+
