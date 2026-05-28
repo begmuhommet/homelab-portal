@@ -29,7 +29,7 @@ app.add_middleware(
 @app.on_event("startup")
 async def startup():
     logger.info("Starting HomeLab Portal API")
-    # load_kube_config()
+    load_kube_config()
 
 
 app.include_router(health.router)
