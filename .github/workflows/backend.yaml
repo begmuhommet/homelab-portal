@@ -1,0 +1,63 @@
+name: Backend CI/CD
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "backend/**"
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository_owner }}/homelab-portal-backend
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GH_TOKEN }}
+
+      - name: Extract version tag
+        id: tag
+        run: echo "sha=${GITHUB_SHA::7}" >> $GITHUB_OUTPUT
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./backend
+          push: true
+          tags: |
+            ghcr.io/${{ env.IMAGE_NAME }}:${{ steps.tag.outputs.sha }}
+            ghcr.io/${{ env.IMAGE_NAME }}:latest
+
+      - name: Update image tag in platform repo
+        uses: actions/checkout@v4
+        with:
+          repository: begmuhommet/homelab-platform
+          token: ${{ secrets.GH_TOKEN }}
+          path: homelab-platform
+
+      - name: Update deployment manifest
+        run: |
+          sed -i 's|ghcr.io/begmuhommet/homelab-portal-backend:.*|ghcr.io/begmuhommet/homelab-portal-backend:${{ steps.tag.outputs.sha }}|' \
+            homelab-platform/infrastructure/portal/backend-deployment.yaml
+
+      - name: Commit and push
+        run: |
+          cd homelab-platform
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+          git add infrastructure/portal/backend-deployment.yaml
+          git commit -m "ci: update backend image to ${{ steps.tag.outputs.sha }}"
+          git push

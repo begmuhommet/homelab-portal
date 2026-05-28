@@ -3,7 +3,6 @@ backend/venv
 .git
 .env
 .secrets
-.github
 
 __pycache__
 *.pyc
